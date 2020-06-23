@@ -311,3 +311,29 @@ func (m *Melody) IsClosed() bool {
 func FormatCloseMessage(closeCode int, text string) []byte {
 	return websocket.FormatCloseMessage(closeCode, text)
 }
+
+func (m *Melody) Dial(urlStr string) (*Session, error) {
+	if conn, _, err := websocket.DefaultDialer.Dial(urlStr, nil); err == nil {
+		session := &Session{
+			conn:    conn,
+			output:  make(chan *envelope, m.Config.MessageBufferSize),
+			melody:  m,
+			open:    true,
+			rwmutex: &sync.RWMutex{},
+		}
+		m.hub.register <- session
+		go session.writePump()
+		go func(m1 *Melody, s *Session) {
+			s.readPump()
+			if !m1.hub.closed() {
+				m1.hub.unregister <- s
+			}
+			s.close()
+			m1.disconnectHandler(s)
+		}(m, session)
+
+		return session, nil
+	} else {
+		return nil, err
+	}
+}

@@ -167,6 +167,7 @@ func (m *Melody) HandleRequestWithKeys(w http.ResponseWriter, r *http.Request, k
 		return errors.New("melody instance is closed")
 	}
 
+	websocket.DefaultDialer.Dial()
 	conn, err := m.Upgrader.Upgrade(w, r, w.Header())
 
 	if err != nil {
@@ -313,7 +314,8 @@ func FormatCloseMessage(closeCode int, text string) []byte {
 }
 
 func (m *Melody) Dial(urlStr string) (*Session, error) {
-	if conn, _, err := websocket.DefaultDialer.Dial(urlStr, nil); err == nil {
+	dialer := &websocket.Dialer{}
+	if conn, _, err := dialer.Dial(urlStr, nil); err == nil {
 		session := &Session{
 			conn:    conn,
 			output:  make(chan *envelope, m.Config.MessageBufferSize),
